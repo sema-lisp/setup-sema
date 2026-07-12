@@ -28,7 +28,7 @@ Or pin the version in a `.sema-version` file at your repo root and just call the
 | `version`      | —                  | Deprecated alias for `sema-version`.                     |
 | `check-latest` | `false`            | Reserved; `latest` is always re-resolved in this action. |
 | `github-token` | repo token         | Token for release API + downloads (avoids rate limits).  |
-| `download-url` | —                  | Escape hatch: install from this exact archive URL.       |
+| `download-url` | —                  | Escape hatch: install from this exact archive URL (mirrors, air-gapped CI). Bypasses version/manifest resolution **and checksum verification** — you own the URL's trust. |
 
 ## Outputs
 

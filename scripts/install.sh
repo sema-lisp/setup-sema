@@ -22,14 +22,19 @@ die()  { echo "::error::$*" >&2; exit 1; }
 auth_hdr=()
 [ -n "$GH_TOKEN" ] && auth_hdr=(-H "Authorization: Bearer ${GH_TOKEN}")
 
+# Bounded, retrying network options shared by every curl call: retry transient
+# failures (incl. connection-refused), cap the connect phase, and cap total time
+# so a hard network stall fails closed in bounded time instead of hanging.
+NET_OPTS=(--retry 3 --retry-connrefused --connect-timeout 30 --max-time 600)
+
 gh_api() {
   # shellcheck disable=SC2086
-  curl -fsSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} \
+  curl -fsSL "${NET_OPTS[@]}" ${auth_hdr[@]+"${auth_hdr[@]}"} \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" "$1"
 }
 # shellcheck disable=SC2086
-dl() { curl -fsSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} -o "$2" "$1"; }
+dl() { curl -fsSL "${NET_OPTS[@]}" ${auth_hdr[@]+"${auth_hdr[@]}"} -o "$2" "$1"; }
 
 # --- 1. Resolve requested version --------------------------------
 REQUESTED="${INPUT_SEMA_VERSION:-$INPUT_VERSION}"
@@ -104,7 +109,7 @@ if [ "$CACHE_HIT" = false ]; then
   # unverified). No -f here so we can read the status code even on 4xx.
   if [ -n "$CHECKSUM_ASSET" ]; then
     # shellcheck disable=SC2086
-    SUM_HTTP="$(curl -sSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} \
+    SUM_HTTP="$(curl -sSL "${NET_OPTS[@]}" ${auth_hdr[@]+"${auth_hdr[@]}"} \
       -o "${TMP}/${ASSET}.sha256" -w '%{http_code}' \
       "${DL_BASE}/${TAG}/${CHECKSUM_ASSET}" || true)"
     if [ "$SUM_HTTP" = "200" ]; then
@@ -114,7 +119,7 @@ if [ "$CACHE_HIT" = false ]; then
     elif [ "$SUM_HTTP" = "404" ]; then
       warn "No checksum published for ${ASSET} (HTTP 404); skipping verification"
     else
-      die "Failed to fetch checksum for ${ASSET} (HTTP ${SUM_HTTP:-unknown}); refusing to install unverified. Retry, or set download-url to override."
+      die "Failed to fetch checksum for ${ASSET} (HTTP ${SUM_HTTP:-unknown}); refusing to install unverified. Re-run the job; a persistent failure may indicate a network or GitHub Releases outage."
     fi
   else
     warn "No checksum available for ${ASSET}; skipping verification"
