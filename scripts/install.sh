@@ -93,14 +93,25 @@ if [ "$CACHE_HIT" = false ]; then
   log "Downloading ${URL}"
   dl "$URL" "${TMP}/${ASSET}"
 
-  # --- 5. Checksum verify ----------------------------------------
-  if [ -n "$CHECKSUM_ASSET" ] \
-     && dl "${DL_BASE}/${TAG}/${CHECKSUM_ASSET}" "${TMP}/${ASSET}.sha256" 2>/dev/null; then
-    ( cd "$TMP"
-      if command -v sha256sum >/dev/null 2>&1; then sha256sum -c "${ASSET}.sha256"
-      else shasum -a 256 -c "${ASSET}.sha256"; fi )
+  # --- 5. Checksum verify (mandatory when the checksum exists) ----
+  # Distinguish a genuinely-absent checksum (HTTP 404 -> warn + proceed) from a
+  # fetch failure for a checksum we expect to exist (-> hard fail, never install
+  # unverified). No -f here so we can read the status code even on 4xx.
+  if [ -n "$CHECKSUM_ASSET" ]; then
+    SUM_HTTP="$(curl -sSL --retry 3 "${auth_hdr[@]}" \
+      -o "${TMP}/${ASSET}.sha256" -w '%{http_code}' \
+      "${DL_BASE}/${TAG}/${CHECKSUM_ASSET}" || true)"
+    if [ "$SUM_HTTP" = "200" ]; then
+      ( cd "$TMP"
+        if command -v sha256sum >/dev/null 2>&1; then sha256sum -c "${ASSET}.sha256"
+        else shasum -a 256 -c "${ASSET}.sha256"; fi )
+    elif [ "$SUM_HTTP" = "404" ]; then
+      warn "No checksum published for ${ASSET} (HTTP 404); skipping verification"
+    else
+      die "Failed to fetch checksum for ${ASSET} (HTTP ${SUM_HTTP:-unknown}); refusing to install unverified. Retry, or set download-url to override."
+    fi
   else
-    warn "No checksum published for ${ASSET}; skipping verification"
+    warn "No checksum available for ${ASSET}; skipping verification"
   fi
 
   # --- 6. Extract ------------------------------------------------
