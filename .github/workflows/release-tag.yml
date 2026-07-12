@@ -1,0 +1,25 @@
+name: release-tag
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move major tag to this release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
+          MAJOR="${TAG%%.*}"                # e.g. v1
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa "$MAJOR" -m "Update $MAJOR tag to $TAG"
+          git push origin "$MAJOR" --force

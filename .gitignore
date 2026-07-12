@@ -1,0 +1,4 @@
+# nothing to build; keep the repo clean of local test scratch
+*.log
+smoke.sema
+/tmp-tool-cache/

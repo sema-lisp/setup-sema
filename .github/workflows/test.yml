@@ -1,0 +1,56 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: catch asset-shape breakage from new sema releases
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+        sema-version: [latest, "1.30.0"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Sema
+        id: sema
+        uses: ./
+        with:
+          sema-version: ${{ matrix.sema-version }}
+
+      - name: Resolved version output is present
+        shell: bash
+        run: |
+          test -n "${{ steps.sema.outputs.sema-version }}"
+          echo "Installed: ${{ steps.sema.outputs.sema-version }}"
+
+      - name: Pinned version matches request
+        if: matrix.sema-version != 'latest'
+        shell: bash
+        run: test "${{ steps.sema.outputs.sema-version }}" = "${{ matrix.sema-version }}"
+
+      - name: sema --version runs
+        shell: bash
+        run: sema --version
+
+      - name: Sema evaluates code
+        shell: bash
+        run: |
+          echo '(println (+ 1 2))' > smoke.sema
+          OUT="$(sema smoke.sema)"
+          test "$OUT" = "3"
+
+      - name: Second run hits the tool cache
+        id: sema2
+        uses: ./
+        with:
+          sema-version: ${{ matrix.sema-version }}
+
+      - name: Assert cache-hit on rerun
+        shell: bash
+        run: test "${{ steps.sema2.outputs.cache-hit }}" = "true"
