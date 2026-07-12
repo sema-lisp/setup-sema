@@ -5,7 +5,7 @@ REPO="sema-lisp/sema"
 API="https://api.github.com/repos/${REPO}"
 DL_BASE="https://github.com/${REPO}/releases/download"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON="$(command -v python3 || command -v python)"
+PYTHON="$(command -v python3 || command -v python || true)"
 
 : "${GH_TOKEN:=}"
 : "${INPUT_SEMA_VERSION:=}"
@@ -17,15 +17,19 @@ log()  { echo "$*"; }
 warn() { echo "::warning::$*"; }
 die()  { echo "::error::$*" >&2; exit 1; }
 
+[ -n "$PYTHON" ] || die "python3 (or python) is required but was not found on PATH"
+
 auth_hdr=()
 [ -n "$GH_TOKEN" ] && auth_hdr=(-H "Authorization: Bearer ${GH_TOKEN}")
 
 gh_api() {
-  curl -fsSL --retry 3 "${auth_hdr[@]}" \
+  # shellcheck disable=SC2086
+  curl -fsSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" "$1"
 }
-dl() { curl -fsSL --retry 3 "${auth_hdr[@]}" -o "$2" "$1"; }
+# shellcheck disable=SC2086
+dl() { curl -fsSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} -o "$2" "$1"; }
 
 # --- 1. Resolve requested version --------------------------------
 REQUESTED="${INPUT_SEMA_VERSION:-$INPUT_VERSION}"
@@ -87,6 +91,7 @@ if [ "$CACHE_HIT" = false ]; then
       esac
       CHECKSUM_ASSET="${ASSET}.sha256"
     fi
+    if [ -z "$CHECKSUM_ASSET" ]; then CHECKSUM_ASSET="${ASSET}.sha256"; fi
     URL="${DL_BASE}/${TAG}/${ASSET}"
   fi
 
@@ -98,7 +103,8 @@ if [ "$CACHE_HIT" = false ]; then
   # fetch failure for a checksum we expect to exist (-> hard fail, never install
   # unverified). No -f here so we can read the status code even on 4xx.
   if [ -n "$CHECKSUM_ASSET" ]; then
-    SUM_HTTP="$(curl -sSL --retry 3 "${auth_hdr[@]}" \
+    # shellcheck disable=SC2086
+    SUM_HTTP="$(curl -sSL --retry 3 ${auth_hdr[@]+"${auth_hdr[@]}"} \
       -o "${TMP}/${ASSET}.sha256" -w '%{http_code}' \
       "${DL_BASE}/${TAG}/${CHECKSUM_ASSET}" || true)"
     if [ "$SUM_HTTP" = "200" ]; then
