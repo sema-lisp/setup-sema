@@ -172,7 +172,19 @@ if [ "$CACHE_HIT" = false ]; then
   STAGE="${TMP}/extract"
   mkdir -p "$STAGE"
   case "$ASSET" in
-    *.tar.gz|*.tgz|*.tar.xz|*.txz|*.tar|*.zip) tar -xf "${TMP}/${ASSET}" -C "$STAGE" ;;
+    *.zip)
+      # Git Bash's `tar` is GNU tar and can't read zip. Prefer unzip (present on
+      # hosted Windows), fall back to PowerShell's Expand-Archive (always on
+      # Windows) so minimal self-hosted runners without unzip still work.
+      if command -v unzip >/dev/null 2>&1; then
+        unzip -q "${TMP}/${ASSET}" -d "$STAGE"
+      elif command -v powershell >/dev/null 2>&1; then
+        powershell -NoProfile -NonInteractive -Command \
+          "Expand-Archive -LiteralPath '$(cygpath -w "${TMP}/${ASSET}")' -DestinationPath '$(cygpath -w "$STAGE")' -Force"
+      else
+        die "No zip extractor found (need 'unzip' or PowerShell)."
+      fi ;;
+    *.tar.gz|*.tgz|*.tar.xz|*.txz|*.tar) tar -xf "${TMP}/${ASSET}" -C "$STAGE" ;;
     *) die "Unknown archive type: ${ASSET}" ;;
   esac
   BIN="$(find "$STAGE" -type f \( -name sema -o -name sema.exe \) | head -1)"
