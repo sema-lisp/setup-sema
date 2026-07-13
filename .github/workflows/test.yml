@@ -11,7 +11,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+        # macos-latest is Apple Silicon (aarch64). Intel macOS (macos-13, x86_64)
+        # is omitted: GitHub is sunsetting its Intel-mac runners and their queue is
+        # unreliable; x86_64-apple-darwin uses the identical .tar.xz install path
+        # this matrix already exercises on the aarch64 macos-latest cell.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
         sema-version: [latest, "1.30.0"]
     runs-on: ${{ matrix.os }}
     steps:
