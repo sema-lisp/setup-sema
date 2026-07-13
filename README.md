@@ -6,10 +6,7 @@
 
 **[Sema](https://sema-lang.com) setup action for GitHub Actions** — a Lisp with first-class LLM primitives.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/sema-lisp/setup-sema/test.yml?branch=main&label=CI&logo=github)](https://github.com/sema-lisp/setup-sema/actions)
-[![License](https://img.shields.io/github/license/sema-lisp/setup-sema?color=c8a855)](LICENSE)
-[![Website](https://img.shields.io/badge/website-sema--lang.com-c8a855)](https://sema-lang.com)
-[![Marketplace](https://img.shields.io/badge/marketplace-setup--sema-c8a855?logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/setup-sema)
+[![CI](https://img.shields.io/github/actions/workflow/status/sema-lisp/setup-sema/test.yml?branch=main&label=CI&logo=github)](https://github.com/sema-lisp/setup-sema/actions) [![License](https://img.shields.io/github/license/sema-lisp/setup-sema?color=c8a855)](https://github.com/sema-lisp/setup-sema/blob/main/LICENSE) [![Website](https://img.shields.io/badge/website-sema--lang.com-c8a855)](https://sema-lang.com) [![Marketplace](https://img.shields.io/badge/marketplace-setup--sema-c8a855?logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/setup-sema)
 
 </div>
 
