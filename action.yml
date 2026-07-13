@@ -1,5 +1,5 @@
 name: "Setup Sema"
-description: "Install the Sema programming language (sema-lang.com) and add it to PATH"
+description: "Install the Sema Lisp programming language (sema-lang.com) and add it to PATH"
 author: "sema-lisp"
 
 branding:
@@ -8,29 +8,34 @@ branding:
 
 inputs:
   sema-version:
-    description: 'Sema version to install: "1.30.0", "v1.30.0", or "latest"'
-    required: false
-    default: "latest"
-  version:
-    description: "Deprecated alias for sema-version (used only if sema-version is unset)"
+    description: >-
+      Sema version to install: "1.30.0", "v1.30.0", or "latest". When empty,
+      falls back to a .sema-version / .tool-versions file, then "latest".
     required: false
     default: ""
-  check-latest:
-    description: "Always re-resolve 'latest' from the API instead of trusting a cached resolution"
+  version:
+    description: "Deprecated alias for sema-version (removed in v2)"
     required: false
-    default: "false"
+    default: ""
   github-token:
-    description: "Token for release API calls and asset download (avoids rate limits)"
+    description: "Token for release API calls (avoids rate limits). Not sent to asset downloads."
     required: false
     default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
   download-url:
-    description: "Escape hatch: download the archive from this exact URL, bypassing version/manifest resolution"
+    description: >-
+      Escape hatch: install this exact archive URL (mirrors, air-gapped CI),
+      bypassing version/manifest resolution. Verified against <url>.sha256 if
+      present, otherwise installed unverified — you own the URL's trust.
     required: false
     default: ""
+  verify:
+    description: "Run 'sema --version' after install to confirm the binary executes"
+    required: false
+    default: "true"
 
 outputs:
   sema-version:
-    description: "The concrete version installed, e.g. 1.30.0"
+    description: "The concrete version installed, e.g. 1.30.0 (or 'custom' for a download-url with no version)"
     value: ${{ steps.install.outputs.sema-version }}
   version:
     description: "Deprecated alias of sema-version"
@@ -41,9 +46,9 @@ outputs:
   cache-hit:
     description: "true if satisfied from the runner tool cache"
     value: ${{ steps.install.outputs.cache-hit }}
-  cachekey:
+  cache-key:
     description: "Ready-made cache-key component for a downstream dependency cache"
-    value: ${{ steps.install.outputs.cachekey }}
+    value: ${{ steps.install.outputs.cache-key }}
   download-url:
     description: "The asset URL actually used (or 'cache')"
     value: ${{ steps.install.outputs.download-url }}
@@ -58,10 +63,10 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         INPUT_SEMA_VERSION: ${{ inputs.sema-version }}
         INPUT_VERSION: ${{ inputs.version }}
-        INPUT_CHECK_LATEST: ${{ inputs.check-latest }}
         INPUT_DOWNLOAD_URL: ${{ inputs.download-url }}
       run: bash "${{ github.action_path }}/scripts/install.sh"
 
     - name: Verify installation
+      if: ${{ inputs.verify == 'true' }}
       shell: bash
       run: sema --version
