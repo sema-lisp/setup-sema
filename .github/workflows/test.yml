@@ -47,6 +47,7 @@ jobs:
         run: |
           echo '(println (+ 1 2))' > smoke.sema
           OUT="$(sema smoke.sema)"
+          OUT="${OUT%$'\r'}"   # tolerate CRLF from a native Windows build
           test "$OUT" = "3"
 
       - name: Second run hits the tool cache
@@ -58,3 +59,62 @@ jobs:
       - name: Assert cache-hit on rerun
         shell: bash
         run: test "${{ steps.sema2.outputs.cache-hit }}" = "true"
+
+  # Resolution + security paths that the OS matrix (happy path only) can't prove.
+  resolution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version validation rejects hostile inputs (path traversal, injection)
+        shell: bash
+        run: bash scripts/test_validation.sh
+
+      - name: A .sema-version file is honored when sema-version is unset
+        shell: bash
+        run: echo "1.30.0" > .sema-version
+      - uses: ./
+        id: fromfile
+        with:
+          sema-version: ""
+      - name: Assert .sema-version pin was used
+        shell: bash
+        run: |
+          test "${{ steps.fromfile.outputs.sema-version }}" = "1.30.0"
+          rm -f .sema-version
+
+      - name: A .tool-versions file is honored when sema-version is unset
+        shell: bash
+        run: echo "sema 1.30.0" > .tool-versions
+      - uses: ./
+        id: fromtool
+        with:
+          sema-version: ""
+      - name: Assert .tool-versions pin was used
+        shell: bash
+        run: |
+          test "${{ steps.fromtool.outputs.sema-version }}" = "1.30.0"
+          rm -f .tool-versions
+
+      - name: The deprecated 'version' alias still resolves
+        uses: ./
+        id: alias
+        with:
+          version: "1.30.0"
+      - name: Assert alias resolved and cache-key is exposed
+        shell: bash
+        run: |
+          test "${{ steps.alias.outputs.sema-version }}" = "1.30.0"
+          test -n "${{ steps.alias.outputs.cache-key }}"
+
+      - name: verify:false skips the sema --version step (still installs + PATHs)
+        uses: ./
+        id: noverify
+        with:
+          sema-version: "1.30.0"
+          verify: "false"
+      - name: Assert install still worked with verify disabled
+        shell: bash
+        run: |
+          test "${{ steps.noverify.outputs.sema-version }}" = "1.30.0"
+          sema --version
